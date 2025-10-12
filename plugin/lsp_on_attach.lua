@@ -2,7 +2,6 @@ local bind = vim.keymap.set
 bind('n', '<space>e', vim.diagnostic.open_float)
 bind('n', '[d', vim.diagnostic.goto_prev)
 bind('n', ']d', vim.diagnostic.goto_next)
-bind('n', '<space>q', vim.diagnostic.setloclist)
 vim.diagnostic.config({virtual_text = false})
 vim.diagnostic.open_float({
   scope='l'

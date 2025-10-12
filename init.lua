@@ -26,10 +26,6 @@ vim.o.termguicolors = true
 vim.o.incsearch = true
 vim.o.wildmode = 'longest,list'
 
--- vim.cmd 'syntax enable'         -- Enables syntax highlighing
--- vim.cmd 'filetype plugin on'
--- vim.cmd 'filetype plugin indent on'
-
 -- [[ Highlight on yank ]]
 vim.api.nvim_create_autocmd("TextYankPost", {
     callback = function()
@@ -37,6 +33,27 @@ vim.api.nvim_create_autocmd("TextYankPost", {
     end,
 })
 
+local bind = vim.keymap.set
+
+vim.g.mapleader = " "
+vim.g.maplocalleader = "\\"
+
+bind('i', 'jk', '<Esc>')
+bind('n', 'Y', 'y$')
+bind('v', '>', '>gv')
+bind('v', '<', '<gv')
+bind('v', 'jk', '<Esc>')
+bind('n', '<leader>w', ':w<CR>')
+bind('n', '<leader>W', ':wq<CR>')
+bind("n", "<leader>q", "<cmd>q<cr>", { desc = "Quit" })
+bind('n', '<leader>Q', ':q!<CR>')
+bind('n', '<leader>b', ':NvimTreeFocus<CR>')
+bind('n', '<C-b>', ':NvimTreeToggle<CR>')
+bind('i', '<C-b>', ':NvimTreeToggle<CR>')
+
+-- terminal mode
+bind('t','<Esc>' ,'<C-\\><C-n>')
+bind('t','jk' ,'<C-\\><C-n>')
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -55,9 +72,6 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-vim.g.mapleader = " "
-vim.g.maplocalleader = "\\"
-
 require('lazy').setup({
   spec = {
     {import = 'plugin_configs'},
@@ -68,7 +82,6 @@ require('lazy').setup({
     'numToStr/Comment.nvim', -- "gc" to comment visual regions/lines
     'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
     'christoomey/vim-tmux-navigator', -- nvim & tmux integration and movement
-    'Tyler-Barham/floating-help.nvim',
     { -- Add indentation guides even on blank lines
       'lukas-reineke/indent-blankline.nvim',
       config = function()
