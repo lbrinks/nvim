@@ -1,11 +1,11 @@
 local bind = vim.keymap.set
 bind("n", "<space>e", vim.diagnostic.open_float)
-bind("n", "[d", vim.diagnostic.goto_prev)
-bind("n", "]d", vim.diagnostic.goto_next)
-vim.diagnostic.config({ virtual_text = false })
-vim.diagnostic.open_float({
-	scope = "l",
-})
+-- bind("n", "[d", vim.diagnostic.goto_prev)
+-- bind("n", "]d", vim.diagnostic.goto_next)
+-- vim.diagnostic.config({ virtual_text = false })
+-- vim.diagnostic.open_float({
+-- 	scope = "l",
+-- })
 
 -- Use LspAttach autocommand to only map the following keys
 -- after the language server attaches to the current buffer

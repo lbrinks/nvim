@@ -9,7 +9,11 @@ return {
 		config = function()
 			local bind = vim.keymap.set
 			-- [[ Configure Telescope ]]
-			require("telescope").setup({})
+			require("telescope").setup({
+				defaults = {
+					file_ignore_patterns = { ".git/", ".venv" },
+				},
+			})
 
 			-- Enable telescope fzf native, if installed
 			require("telescope").load_extension("fzf")
