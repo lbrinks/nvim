@@ -27,7 +27,7 @@ return {
 			bind("n", "<leader>sh", require("telescope.builtin").help_tags, { desc = "[S]earch [H]elp" })
 			bind("n", "<leader>sw", require("telescope.builtin").grep_string, { desc = "[S]earch current [W]ord" })
 			bind("n", "<leader>sg", require("telescope.builtin").live_grep, { desc = "[S]earch by [G]rep" })
-			bind("n", "<leader>sd", require("telescope.builtin").diagnostics, { desc = "[S]ekarch [D]iagnostics" })
+			bind("n", "<leader>sd", require("telescope.builtin").diagnostics, { desc = "[S]earch [D]iagnostics" })
 			bind("n", "<leader>sc", function()
 				require("telescope.builtin").find_files({ cwd = vim.fn.stdpath("config") })
 			end, { desc = "[S]earch [C]onfig Files" })

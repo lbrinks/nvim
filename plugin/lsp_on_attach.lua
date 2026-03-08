@@ -1,12 +1,3 @@
-local bind = vim.keymap.set
-bind("n", "<space>e", vim.diagnostic.open_float)
--- bind("n", "[d", vim.diagnostic.goto_prev)
--- bind("n", "]d", vim.diagnostic.goto_next)
--- vim.diagnostic.config({ virtual_text = false })
--- vim.diagnostic.open_float({
--- 	scope = "l",
--- })
-
 -- Use LspAttach autocommand to only map the following keys
 -- after the language server attaches to the current buffer
 vim.api.nvim_create_autocmd("LspAttach", {
@@ -22,7 +13,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
 		-- Buffer local mappings.
 		-- See `:help vim.lsp.*` for documentation on any of the below functions
-		local opts = { buffer = ev.buf }
 		nmap("gd", vim.lsp.buf.definition, "[G]oto [D]efinition")
 		nmap("K", vim.lsp.buf.hover, "Hover Documentation")
 		nmap("<C-k>", vim.lsp.buf.signature_help, "Signature Documentation")
