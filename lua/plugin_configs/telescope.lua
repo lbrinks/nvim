@@ -10,6 +10,15 @@ return {
 			local bind = vim.keymap.set
 			-- [[ Configure Telescope ]]
 			require("telescope").setup({
+				pickers = {
+					help_tags = {
+						mappings = {
+							i = {
+								["<CR>"] = "file_vsplit",
+							},
+						},
+					},
+				},
 				defaults = {
 					file_ignore_patterns = { ".git/", ".venv" },
 				},
