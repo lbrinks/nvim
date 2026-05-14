@@ -1,5 +1,5 @@
 return {
-	{ --shows the possible key combinations
+	{
 		"folke/which-key.nvim",
 		event = "VeryLazy",
 		init = function()
