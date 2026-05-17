@@ -2,22 +2,14 @@ return {
 	{
 		"nvim-treesitter/nvim-treesitter",
 		build = ":TSUpdate",
-		config = function()
-			-- Use nvim-treesitter.configs setup properly
-			require("nvim-treesitter.configs").setup({
-				ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline", "python" },
-				sync_install = false,
-				auto_install = true,
+		opts = {
+			ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline", "python" },
+			sync_install = false,
+			auto_install = true,
 
-				highlight = {
-					enable = true,
-				},
-				indent = {
-					enable = true,
-					disable = { "python" },
-				},
-
-				-- Disable treesitter for large files
+			highlight = {
+				enable = true,
+				additional_vim_regex_highlighting = false,
 				disable = function(lang, buf)
 					local max_filesize = 100 * 1024 -- 100 KB
 					local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
@@ -25,9 +17,11 @@ return {
 						return true
 					end
 				end,
-
-				additional_vim_regex_highlighting = false,
-			})
-		end,
+			},
+			indent = {
+				enable = true,
+				disable = { "python" },
+			},
+		},
 	},
 }
