@@ -74,10 +74,12 @@ require("lazy").setup({
 		{ import = "plugin_configs" },
 		"EdenEast/nightfox.nvim", -- colorscheme
 		"tpope/vim-surround", -- changes the surround of motions
-		"tpope/vim-fugitive", -- use :G to use git from the vim command line
+		-- "tpope/vim-fugitive", -- use :G to use git from the vim command line
 		"tpope/vim-repeat", -- repeat stuff!
 		"numToStr/Comment.nvim", -- "gc" to comment visual regions/lines
 		"tpope/vim-sleuth", -- Detect tabstop and shiftwidth automatically
+		"sitiom/nvim-numbertoggle",
+		"MeanderingProgrammer/render-markdown.nvim",
 		"christoomey/vim-tmux-navigator", -- nvim & tmux integration and movement
 		{ -- Add indentation guides even on blank lines
 			"lukas-reineke/indent-blankline.nvim",
