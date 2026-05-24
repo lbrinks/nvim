@@ -21,7 +21,7 @@ local function resolve_gh_bin()
 		return "gh"
 	end
 	-- Other coder environments: fetch a fresh token from the coder CLI
-	return "usr/bin/gh"
+	return "/usr/bin/gh"
 end
 
 return {

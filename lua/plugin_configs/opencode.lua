@@ -7,27 +7,7 @@ return {
 		"nickjvandyke/opencode.nvim",
 		version = "*", -- Latest stable release
 		dependencies = {
-			{
-				"folke/snacks.nvim",
-				optional = true,
-				opts = {
-					input = {},
-					picker = {
-						actions = {
-							opencode_send = function(...)
-								return require("opencode").snacks_picker_send(...)
-							end,
-						},
-						win = {
-							input = {
-								keys = {
-									["<a-a>"] = { "opencode_send", mode = { "n", "i" } },
-								},
-							},
-						},
-					},
-				},
-			},
+			"folke/snacks.nvim",
 		},
 		config = function()
 			-- Configuration for opencode.nvim
