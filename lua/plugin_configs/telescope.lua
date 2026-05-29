@@ -8,6 +8,7 @@ return {
 		},
 		config = function()
 			local bind = vim.keymap.set
+
 			-- [[ Configure Telescope ]]
 			require("telescope").setup({
 				pickers = {
@@ -17,6 +18,31 @@ return {
 								["<CR>"] = "file_vsplit",
 							},
 						},
+					},
+					find_files = {
+						-- Boost .py files by sorting them before .rst in tiebreaker
+						tiebreak = function(entry_a, entry_b)
+							local a_py = entry_a.ordinal:match("%.py$") and true or false
+							local a_rst = entry_a.ordinal:match("%.rst$") and true or false
+							local b_py = entry_b.ordinal:match("%.py$") and true or false
+							local b_rst = entry_b.ordinal:match("%.rst$") and true or false
+							-- .py wins over non-.py
+							if a_py and not b_py then
+								return true
+							end
+							if b_py and not a_py then
+								return false
+							end
+							-- .rst loses to non-.rst
+							if a_rst and not b_rst then
+								return false
+							end
+							if b_rst and not a_rst then
+								return true
+							end
+							-- Fallback: alphabetical
+							return entry_a.ordinal < entry_b.ordinal
+						end,
 					},
 				},
 				defaults = {

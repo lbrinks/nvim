@@ -1,7 +1,25 @@
 return {
 	{
 		"mason-org/mason-lspconfig.nvim",
-		opts = { ensure_installed = { "basedpyright", "bashls" } },
+		opts = {
+			ensure_installed = { "basedpyright", "bashls" },
+			handlers = {
+				basedpyright = function()
+					require("lspconfig").basedpyright.setup({
+						settings = {
+							basedpyright = {
+								analysis = {
+									typeCheckingMode = "basic",
+									diagnosticSeverityOverrides = {
+										reportUnknownMemberType = "none",
+									},
+								},
+							},
+						},
+					})
+				end,
+			},
+		},
 		dependencies = {
 			{ "mason-org/mason.nvim", opts = {} },
 			{

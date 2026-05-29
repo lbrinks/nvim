@@ -27,6 +27,7 @@ end
 return {
 	{
 		"pwntester/octo.nvim",
+		pin = true, -- pinned to PR #1520 branch (fragment dedup fix); unpin after merge
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			"nvim-telescope/telescope.nvim",
@@ -35,6 +36,18 @@ return {
 		cmd = "Octo",
 		keys = {
 			{ "<leader>gi", "<cmd>Octo issue list<cr>", desc = "[G]H [I]ssue list" },
+			{
+				"<leader>gI",
+				function()
+					vim.ui.input({ prompt = "Filter by label: " }, function(label)
+						if label and label ~= "" then
+							vim.cmd("Octo issue list labels=" .. label)
+						end
+					end)
+				end,
+				desc = "[G]H [I]ssues by label",
+			},
+			{ "<leader>gl", "<cmd>OctoIssueBoard<cr>", desc = "[G]H issue [L]ist buffer" },
 			{ "<leader>gp", "<cmd>Octo pr list<cr>", desc = "[G]H [P]R list" },
 			{ "<leader>gs", "<cmd>Octo search<cr>", desc = "[G]H [S]earch" },
 			{ "<leader>gc", "<cmd>Octo pr create<cr>", desc = "[G]H PR [C]reate" },
@@ -51,7 +64,7 @@ return {
 		},
 		config = function()
 			require("octo").setup({
-				use_local_fs = false,
+				use_local_fs = true,
 				enable_builtin = true,
 				default_remote = { "upstream", "origin" },
 				default_merge_method = "squash",
