@@ -47,7 +47,7 @@ return {
 				enabled = true,
 				width = 65,
 				preset = {
-					header = table.concat(wave, "\n") .. "\n\n" .. cwd .. "\n\nStart typing to find files",
+					header = table.concat(wave, "\n") .. "\n\n" .. cwd,
 					keys = {
 						{ icon = " ", key = "<leader>gi", desc = "Issues", action = ":Octo issue list" },
 						{ icon = " ", key = "<leader>gp", desc = "PRs", action = ":Octo pr list" },
@@ -61,7 +61,7 @@ return {
 					{
 						section = "recent_files",
 						limit = 10,
-						title = "Recent Files",
+						title = "Start typing to find files. \n",
 						icon = " ",
 						padding = 1,
 					},
