@@ -26,7 +26,7 @@ return {
 
 			-- Anti-conceal: show virtual text on cursor line
 			anti_conceal = {
-				enabled = true,
+				enabled = false,
 				above = 0,
 				below = 0,
 				ignore = {
@@ -42,30 +42,30 @@ return {
 				enabled = true,
 				sign = true,
 				position = "overlay",
-				icons = { "󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 " },
-				width = "full",
-				left_margin = 0,
+				icons = { "█ ", "󰅂 ", "󰄯 ", "󰄰 ", "> ", "· " },
+				width = { "full", "full", "full", "full", "full", "full" },
+				left_margin = { 0, 0, 0, 0, 0, 0 },
 				left_pad = 0,
 				right_pad = 0,
 				min_width = 0,
 				border = false,
-				above = "▄",
-				below = "▀",
+				above = { "█", "▀", "▀", "━", "╌", " " },
+				below = { "█", "▀", " ", " ", "╌", "━" },
 				backgrounds = {
-					"RenderMarkdownH1Bg",
-					"RenderMarkdownH2Bg",
-					"RenderMarkdownH3Bg",
-					"RenderMarkdownH4Bg",
-					"RenderMarkdownH5Bg",
-					"RenderMarkdownH6Bg",
+					"HeadingH1Bg",
+					"HeadingH2Bg",
+					"HeadingH3Bg",
+					"HeadingH4Bg",
+					"HeadingH5Bg",
+					"HeadingH6Bg",
 				},
 				foregrounds = {
-					"RenderMarkdownH1",
-					"RenderMarkdownH2",
-					"RenderMarkdownH3",
-					"RenderMarkdownH4",
-					"RenderMarkdownH5",
-					"RenderMarkdownH6",
+					"HeadingH1Fg",
+					"HeadingH2Fg",
+					"HeadingH3Fg",
+					"HeadingH4Fg",
+					"HeadingH5Fg",
+					"HeadingH6Fg",
 				},
 			},
 
@@ -269,6 +269,21 @@ return {
 			},
 		},
 		config = function(_, opts)
+			-- Distinct heading-level highlight groups (Nord palette)
+			vim.api.nvim_set_hl(0, "HeadingH1Bg", { bg = "#2e4c6d", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH2Bg", { bg = "#2e444d", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH3Bg", { bg = "#2e3d4d", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH4Bg", { bg = "#353b45", bold = false })
+			vim.api.nvim_set_hl(0, "HeadingH5Bg", { bg = "#373940", bold = false })
+			vim.api.nvim_set_hl(0, "HeadingH6Bg", { bg = "#393b3d", bold = false })
+
+			vim.api.nvim_set_hl(0, "HeadingH1Fg", { fg = "#88c0d0", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH2Fg", { fg = "#81a1c1", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH3Fg", { fg = "#8fbcbb", bold = true })
+			vim.api.nvim_set_hl(0, "HeadingH4Fg", { fg = "#a3be8c" })
+			vim.api.nvim_set_hl(0, "HeadingH5Fg", { fg = "#ebcb8b" })
+			vim.api.nvim_set_hl(0, "HeadingH6Fg", { fg = "#b48ead", italic = true })
+
 			require("render-markdown").setup(opts)
 
 			-- Optional: Add custom keybindings for render-markdown commands
