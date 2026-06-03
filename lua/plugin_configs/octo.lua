@@ -27,7 +27,6 @@ end
 return {
 	{
 		"pwntester/octo.nvim",
-		pin = true, -- pinned to PR #1520 branch (fragment dedup fix); unpin after merge
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			"nvim-telescope/telescope.nvim",
@@ -50,7 +49,8 @@ return {
 			{ "<leader>gl", "<cmd>OctoIssueBoard<cr>", desc = "[G]H issue [L]ist buffer" },
 			{ "<leader>gp", "<cmd>Octo pr list<cr>", desc = "[G]H [P]R list" },
 			{ "<leader>gs", "<cmd>Octo search<cr>", desc = "[G]H [S]earch" },
-			{ "<leader>gc", "<cmd>Octo pr create<cr>", desc = "[G]H PR [C]reate" },
+			{ "<leader>gc", "<cmd>Octo pr create draft<cr>", desc = "[G]H PR [C]reate (draft)" },
+			{ "<leader>gR", "<cmd>Octo pr ready<cr>", desc = "[G]H PR mark [R]eady" },
 			{ "<leader>gm", "<cmd>Octo pr merge<cr>", desc = "[G]H PR [M]erge" },
 			{ "<leader>grs", "<cmd>Octo review start<cr>", desc = "[G]H [R]eview [S]tart" },
 			{ "<leader>grS", "<cmd>Octo review submit<cr>", desc = "[G]H [R]eview [S]ubmit" },
@@ -63,6 +63,37 @@ return {
 			{ "<leader>gB", "<cmd>Octo pr browser<cr>", desc = "[G]H PR [B]rowser" },
 		},
 		config = function()
+			-- Apply wrap, linebreak, and render-markdown to Octo diff buffers for markdown files.
+			-- Octo skips ftplugin triggering for these buffers, so we handle it manually.
+			vim.api.nvim_create_autocmd("BufWinEnter", {
+				callback = function(ev)
+					local ok, props = pcall(vim.api.nvim_buf_get_var, ev.buf, "octo_diff_props")
+					if not ok or not props then return end
+					if not (props.path and props.path:match("%.md$")) then return end
+					-- defer until after diffthis runs (which resets wrap)
+					vim.schedule(function()
+						local win = vim.fn.bufwinid(ev.buf)
+						if win ~= -1 then
+							vim.wo[win].wrap = true
+							vim.wo[win].linebreak = true
+						end
+						if vim.bo[ev.buf].filetype == "" then
+							vim.bo[ev.buf].filetype = "markdown"
+						end
+						pcall(function()
+							require("render-markdown").buf_enable()
+						end)
+						-- secondary <leader>g* bindings for review diff buffers
+						local b = ev.buf
+						local m = require("octo.mappings")
+						vim.keymap.set("n", "<leader>ge", m.focus_files, { buffer = b, desc = "focus changed files panel" })
+						vim.keymap.set("n", "<leader>gb", m.toggle_files, { buffer = b, desc = "toggle changed files panel" })
+						vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
+						vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
+					end)
+				end,
+			})
+
 			require("octo").setup({
 				use_local_fs = true,
 				enable_builtin = true,
@@ -197,39 +228,52 @@ return {
 						request_changes = { lhs = "<C-r>", desc = "request changes review" },
 						close_review_tab = { lhs = "<C-c>", desc = "close review tab" },
 					},
-					review_diff = {
-						submit_review = { lhs = "<leader>gvs", desc = "submit review" },
-						discard_review = { lhs = "<leader>gvx", desc = "discard review" },
-						add_review_comment = { lhs = "<leader>gca", desc = "add review comment" },
-						add_review_suggestion = { lhs = "<leader>gsa", desc = "add review suggestion" },
-						focus_files = { lhs = "<leader>ge", desc = "focus changed files panel" },
-						toggle_files = { lhs = "<leader>gb", desc = "toggle changed files panel" },
-						next_thread = { lhs = "]t", desc = "move to next thread" },
-						prev_thread = { lhs = "[t", desc = "move to prev thread" },
-						select_next_entry = { lhs = "]q", desc = "move to next changed file" },
-						select_prev_entry = { lhs = "[q", desc = "move to prev changed file" },
-						select_first_entry = { lhs = "[Q", desc = "move to first changed file" },
-						select_last_entry = { lhs = "]Q", desc = "move to last changed file" },
-						close_review_tab = { lhs = "<C-c>", desc = "close review tab" },
-						toggle_viewed = { lhs = "<leader>g<space>", desc = "toggle file viewed" },
-					},
-					file_panel = {
-						submit_review = { lhs = "<leader>gvs", desc = "submit review" },
-						discard_review = { lhs = "<leader>gvx", desc = "discard review" },
-						next_entry = { lhs = "j", desc = "move to next changed file" },
-						prev_entry = { lhs = "k", desc = "move to prev changed file" },
-						select_entry = { lhs = "<cr>", desc = "show selected changed file diffs" },
-						refresh_files = { lhs = "R", desc = "refresh changed files panel" },
-						focus_files = { lhs = "<leader>ge", desc = "focus changed files panel" },
-						toggle_files = { lhs = "<leader>gb", desc = "toggle changed files panel" },
-						select_next_entry = { lhs = "]q", desc = "move to next changed file" },
-						select_prev_entry = { lhs = "[q", desc = "move to prev changed file" },
-						select_first_entry = { lhs = "[Q", desc = "move to first changed file" },
-						select_last_entry = { lhs = "]Q", desc = "move to last changed file" },
-						close_review_tab = { lhs = "<C-c>", desc = "close review tab" },
-						toggle_viewed = { lhs = "<leader>g<space>", desc = "toggle file viewed" },
-					},
+			review_diff = {
+					submit_review = { lhs = "<leader>gvs", desc = "submit review" },
+					discard_review = { lhs = "<leader>gvx", desc = "discard review" },
+					add_review_comment = { lhs = "<localleader>c", desc = "add review comment" },
+					add_review_suggestion = { lhs = "<localleader>s", desc = "add review suggestion" },
+					focus_files = { lhs = "<localleader>f", desc = "focus changed files panel" },
+					toggle_files = { lhs = "<localleader>b", desc = "toggle changed files panel" },
+					next_thread = { lhs = "]t", desc = "move to next thread" },
+					prev_thread = { lhs = "[t", desc = "move to prev thread" },
+					select_next_entry = { lhs = "]q", desc = "move to next changed file" },
+					select_prev_entry = { lhs = "[q", desc = "move to prev changed file" },
+					select_first_entry = { lhs = "[Q", desc = "move to first changed file" },
+					select_last_entry = { lhs = "]Q", desc = "move to last changed file" },
+					close_review_tab = { lhs = "<localleader>q", desc = "close review tab" },
+					toggle_viewed = { lhs = "<localleader>v", desc = "toggle file viewed" },
 				},
+				file_panel = {
+					submit_review = { lhs = "<leader>gvs", desc = "submit review" },
+					discard_review = { lhs = "<leader>gvx", desc = "discard review" },
+					next_entry = { lhs = "j", desc = "move to next changed file" },
+					prev_entry = { lhs = "k", desc = "move to prev changed file" },
+					select_entry = { lhs = "<cr>", desc = "show selected changed file diffs" },
+					refresh_files = { lhs = "R", desc = "refresh changed files panel" },
+					focus_files = { lhs = "<localleader>f", desc = "focus changed files panel" },
+					toggle_files = { lhs = "<localleader>b", desc = "toggle changed files panel" },
+					select_next_entry = { lhs = "]q", desc = "move to next changed file" },
+					select_prev_entry = { lhs = "[q", desc = "move to prev changed file" },
+					select_first_entry = { lhs = "[Q", desc = "move to first changed file" },
+					select_last_entry = { lhs = "]Q", desc = "move to last changed file" },
+					close_review_tab = { lhs = "<localleader>q", desc = "close review tab" },
+					toggle_viewed = { lhs = "<localleader>v", desc = "toggle file viewed" },
+				},
+			},
+			})
+
+			-- Secondary <leader>g* bindings for review_diff and file_panel (in addition to localleader ones)
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = { "octo_panel" },
+				callback = function(ev)
+					local b = ev.buf
+					local m = require("octo.mappings")
+					vim.keymap.set("n", "<leader>ge", m.focus_files, { buffer = b, desc = "focus changed files panel" })
+					vim.keymap.set("n", "<leader>gb", m.toggle_files, { buffer = b, desc = "toggle changed files panel" })
+					vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
+					vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
+				end,
 			})
 		end,
 	},

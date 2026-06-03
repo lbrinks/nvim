@@ -9,8 +9,24 @@ return {
 		config = function()
 			local bind = vim.keymap.set
 
+			local function harpoon_add_action(prompt_bufnr)
+				local action_state = require("telescope.actions.state")
+				local entry = action_state.get_selected_entry()
+				if entry then
+					require("harpoon"):list():add({ value = entry.filename or entry.path or entry[1] })
+					vim.notify("Harpoon: added " .. (entry.filename or entry.path or entry[1]), vim.log.levels.INFO)
+				end
+			end
+
 			-- [[ Configure Telescope ]]
 			require("telescope").setup({
+				defaults = {
+					file_ignore_patterns = { ".git/", ".venv" },
+					mappings = {
+						i = { ["<C-h>"] = harpoon_add_action },
+						n = { ["<C-h>"] = harpoon_add_action },
+					},
+				},
 				pickers = {
 					help_tags = {
 						mappings = {
@@ -45,13 +61,11 @@ return {
 						end,
 					},
 				},
-				defaults = {
-					file_ignore_patterns = { ".git/", ".venv" },
-				},
 			})
 
 			-- Enable telescope fzf native, if installed
 			require("telescope").load_extension("fzf")
+			require("telescope").load_extension("harpoon")
 			--
 			-- Telescope keymaps
 			bind("n", "<leader>?", require("telescope.builtin").oldfiles, { desc = "[?] Find recently opened files" })
