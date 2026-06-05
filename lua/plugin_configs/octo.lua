@@ -158,7 +158,7 @@ return {
 					dark_blue = "#0366d6",
 					purple = "#6f42c1",
 				},
-				mappings_disable_default = false,
+				mappings_disable_default = true,
 				mappings = {
 					issue = {
 						close_issue = { lhs = "<leader>gic", desc = "close issue" },
@@ -179,7 +179,6 @@ return {
 						react_eyes = { lhs = "<leader>gre", desc = "add eyes reaction" },
 						react_thumbs_up = { lhs = "<leader>gr+", desc = "add thumbs up reaction" },
 						react_thumbs_down = { lhs = "<leader>gr-", desc = "add thumbs down reaction" },
-						react_rocket = { lhs = "<leader>grr", desc = "add rocket reaction" },
 						react_laugh = { lhs = "<leader>grl", desc = "add laugh reaction" },
 						react_confused = { lhs = "<leader>grc", desc = "add confused reaction" },
 					},
@@ -210,18 +209,17 @@ return {
 						react_eyes = { lhs = "<leader>gre", desc = "add eyes reaction" },
 						react_thumbs_up = { lhs = "<leader>gr+", desc = "add thumbs up reaction" },
 						react_thumbs_down = { lhs = "<leader>gr-", desc = "add thumbs down reaction" },
-						react_rocket = { lhs = "<leader>grr", desc = "add rocket reaction" },
 						react_laugh = { lhs = "<leader>grl", desc = "add laugh reaction" },
 						react_confused = { lhs = "<leader>grc", desc = "add confused reaction" },
 					},
-					review_thread = {
-						goto_issue = { lhs = "<leader>gti", desc = "navigate to issue" },
-						add_comment = { lhs = "<leader>gca", desc = "add comment" },
-						add_suggestion = { lhs = "<leader>gsa", desc = "add suggestion" },
-						delete_comment = { lhs = "<leader>gcd", desc = "delete comment" },
-						resolve_thread = { lhs = "<leader>gtr", desc = "resolve thread" },
-						unresolve_thread = { lhs = "<leader>gtu", desc = "unresolve thread" },
-					},
+				review_thread = {
+					goto_issue = { lhs = "<leader>gti", desc = "navigate to issue" },
+					add_comment = { lhs = "<leader>gca", desc = "add comment" },
+					add_suggestion = { lhs = "<leader>gsa", desc = "add suggestion" },
+					delete_comment = { lhs = "<leader>gcd", desc = "delete comment" },
+					resolve_thread = { lhs = "<leader>gtr", desc = "resolve thread" },
+					unresolve_thread = { lhs = "<leader>gtu", desc = "unresolve thread" },
+				},
 					submit_win = {
 						approve_review = { lhs = "<C-a>", desc = "approve review" },
 						comment_review = { lhs = "<C-m>", desc = "comment review" },
@@ -272,7 +270,25 @@ return {
 					vim.keymap.set("n", "<leader>ge", m.focus_files, { buffer = b, desc = "focus changed files panel" })
 					vim.keymap.set("n", "<leader>gb", m.toggle_files, { buffer = b, desc = "toggle changed files panel" })
 					vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
+					vim.keymap.set("n", "<localleader>j", m.select_next_entry, { buffer = b, desc = "move to next changed file" })
+					vim.keymap.set("n", "<localleader>k", m.select_prev_entry, { buffer = b, desc = "move to prev changed file" })
+					vim.keymap.set("n", "<leader>v", function()
+						m.toggle_viewed()
+						m.select_next_entry()
+					end, { buffer = b, desc = "mark as viewed and move to next file" })
 					vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
+				end,
+			})
+
+			-- Extra localleader shortcuts for review threads
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = { "octo" },
+				callback = function(ev)
+					local b = ev.buf
+					local m = require("octo.mappings")
+					vim.keymap.set("n", "<localleader>c", m.add_comment, { buffer = b, desc = "add comment" })
+					vim.keymap.set("n", "<localleader>r", m.resolve_thread, { buffer = b, desc = "resolve thread" })
+					vim.keymap.set("n", "<localleader>u", m.unresolve_thread, { buffer = b, desc = "unresolve thread" })
 				end,
 			})
 		end,
