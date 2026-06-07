@@ -15,21 +15,16 @@ set.autoindent = true -- Good auto indent
 set.number = true -- Line numbers
 set.relativenumber = true -- Relative Line numbers
 
--- Custom statuscolumn with right-side padding
-vim.o.statuscolumn = [[%!v:lua.StatusColumn()]]
-function _G.StatusColumn()
-  local lnum = vim.v.lnum
-  local relnum = vim.v.relnum
-  local is_curr = relnum == 0
-  
-  -- Get line number text
-  local num_str = is_curr and tostring(lnum) or tostring(relnum)
-  
-  -- Right-align in 4 chars, then add 2 spaces padding
-  local width = 4
-  local padded = string.rep(" ", width - #num_str) .. num_str .. "  "
-  
-  return padded
+-- Custom statuscolumn: diag signs left of numbers, git signs right
+vim.o.statuscolumn = "%s%{v:lua.StatusNum()}"
+function _G.StatusNum()
+	local lnum = vim.v.lnum
+	local relnum = vim.v.relnum
+	if relnum == 0 then
+		return lnum .. string.rep(" ", 2 - #tostring(lnum))
+	else
+		return relnum .. string.rep(" ", 2 - #tostring(relnum))
+	end
 end
 set.hidden = true -- Required to keep multiple buffers open multiple buffers
 set.hlsearch = false -- Set highlight on search
@@ -37,7 +32,7 @@ vim.o.mouse = "a" -- Enable mouse mode
 vim.o.undofile = true -- Save undo history
 vim.o.ignorecase = true -- Case insensitive searching UNLESS /C or capital in search
 vim.o.updatetime = 250 -- Decrease update time
-vim.wo.signcolumn = "yes"
+vim.wo.signcolumn = "yes:2"
 vim.o.termguicolors = true
 vim.o.incsearch = true
 vim.o.wildmode = "longest,list"

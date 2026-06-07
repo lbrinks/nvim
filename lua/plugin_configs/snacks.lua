@@ -82,6 +82,7 @@ return {
 						vim.keymap.set("n", char, function()
 							require("telescope.builtin").find_files({
 								default_text = char,
+								hidden = true,
 							})
 						end, { buffer = buf, noremap = true, silent = true })
 					end
