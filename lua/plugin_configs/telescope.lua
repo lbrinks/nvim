@@ -25,14 +25,32 @@ return {
 				end
 			end
 
+			local function add_to_buffers(prompt_bufnr)
+				local action_state = require("telescope.actions.state")
+				local entry = action_state.get_selected_entry()
+				if entry then
+					local path = entry.path or entry.filename or entry[1]
+					if path then
+						path = vim.fn.fnamemodify(path, ":p")
+						vim.cmd.badd(path)
+						local bufnr = vim.fn.bufnr(path)
+						if bufnr ~= -1 then
+							vim.fn.bufload(bufnr)
+							vim.bo[bufnr].buflisted = true
+						end
+						vim.notify("Buffer added: " .. path, vim.log.levels.INFO)
+					end
+				end
+			end
+
 			-- [[ Configure Telescope ]]
 			require("telescope").setup({
 				defaults = {
 					file_ignore_patterns = { ".git/", ".venv" },
 					mappings = {
-						i = { ["<C-h>"] = harpoon_add_action },
-						n = { ["<C-h>"] = harpoon_add_action },
-					},
+					i = { ["<C-h>"] = harpoon_add_action, ["<C-o>"] = add_to_buffers },
+					n = { ["<C-h>"] = harpoon_add_action, ["<C-o>"] = add_to_buffers },
+				},
 				},
 				pickers = {
 					help_tags = {

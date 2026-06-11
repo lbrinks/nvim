@@ -264,7 +264,7 @@ return {
 				},
 				concealcursor = {
 					default = vim.o.concealcursor,
-					rendered = "",
+					rendered = "nc",
 				},
 			},
 		},
