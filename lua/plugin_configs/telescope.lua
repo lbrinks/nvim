@@ -13,8 +13,15 @@ return {
 				local action_state = require("telescope.actions.state")
 				local entry = action_state.get_selected_entry()
 				if entry then
-					require("harpoon"):list():add({ value = entry.filename or entry.path or entry[1] })
-					vim.notify("Harpoon: added " .. (entry.filename or entry.path or entry[1]), vim.log.levels.INFO)
+					local path = entry.filename or entry.path or entry[1]
+					local item = {
+						value = path,
+						context = { row = entry.lnum or 1, col = entry.col or 0 },
+					}
+					require("harpoon"):list():add(item)
+					vim.schedule(function()
+						vim.notify("Harpoon: added " .. path, vim.log.levels.INFO)
+					end)
 				end
 			end
 
@@ -65,7 +72,6 @@ return {
 
 			-- Enable telescope fzf native, if installed
 			require("telescope").load_extension("fzf")
-			require("telescope").load_extension("harpoon")
 			--
 			-- Telescope keymaps
 			bind("n", "<leader>?", require("telescope.builtin").oldfiles, { desc = "[?] Find recently opened files" })

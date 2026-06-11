@@ -12,6 +12,7 @@ return {
 									typeCheckingMode = "basic",
 									diagnosticSeverityOverrides = {
 										reportUnknownMemberType = "none",
+										reportPrivateUsage = "none",
 									},
 								},
 							},

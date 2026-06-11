@@ -24,6 +24,45 @@ local function resolve_gh_bin()
 	return "/usr/bin/gh"
 end
 
+--- Toggle visibility of viewed files in the file panel.
+--- Stores the original files list to allow restore.
+local file_panel_viewed_state = {}
+local function toggle_hide_viewed_files()
+	local reviews = require("octo.reviews")
+	local layout = reviews.get_current_layout()
+	if not layout or not layout.file_panel then
+		vim.notify("[octo] No active review layout", vim.log.levels.WARN)
+		return
+	end
+
+	local panel = layout.file_panel
+	local tabpage = vim.api.nvim_get_current_tabpage()
+	local key = tostring(tabpage)
+
+	-- If already filtering, restore original list
+	if file_panel_viewed_state[key] then
+		panel.files = file_panel_viewed_state[key]
+		file_panel_viewed_state[key] = nil
+		vim.notify("[octo] Showing all files")
+	else
+		-- Save original and filter out viewed files
+		file_panel_viewed_state[key] = vim.deepcopy(panel.files)
+		local filtered = {}
+		for _, file in ipairs(panel.files) do
+			if file.viewed_state ~= "VIEWED" then
+				table.insert(filtered, file)
+			end
+		end
+		panel.files = filtered
+		vim.notify(string.format("[octo] Hiding viewed files (%d unviewed)", #filtered))
+	end
+
+	-- Re-render the panel
+	panel:render()
+	panel:redraw()
+end
+
+
 return {
 	{
 		"pwntester/octo.nvim",
@@ -245,8 +284,8 @@ return {
 				file_panel = {
 					submit_review = { lhs = "<leader>gvs", desc = "submit review" },
 					discard_review = { lhs = "<leader>gvx", desc = "discard review" },
-					next_entry = { lhs = "j", desc = "move to next changed file" },
-					prev_entry = { lhs = "k", desc = "move to prev changed file" },
+					next_entry = { lhs = "", desc = "move to next changed file (use j/k)" },
+					prev_entry = { lhs = "", desc = "move to prev changed file (use j/k)" },
 					select_entry = { lhs = "<cr>", desc = "show selected changed file diffs" },
 					refresh_files = { lhs = "R", desc = "refresh changed files panel" },
 					focus_files = { lhs = "<localleader>f", desc = "focus changed files panel" },
@@ -256,7 +295,7 @@ return {
 					select_first_entry = { lhs = "[Q", desc = "move to first changed file" },
 					select_last_entry = { lhs = "]Q", desc = "move to last changed file" },
 					close_review_tab = { lhs = "<localleader>q", desc = "close review tab" },
-					toggle_viewed = { lhs = "<localleader>v", desc = "toggle file viewed" },
+					toggle_viewed = { lhs = "<localleader><space>", desc = "toggle file viewed" },
 				},
 			},
 			})
@@ -276,6 +315,7 @@ return {
 						m.toggle_viewed()
 						m.select_next_entry()
 					end, { buffer = b, desc = "mark as viewed and move to next file" })
+					vim.keymap.set("n", "<localleader>h", toggle_hide_viewed_files, { buffer = b, desc = "toggle hide viewed files" })
 					vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
 				end,
 			})
@@ -286,9 +326,11 @@ return {
 				callback = function(ev)
 					local b = ev.buf
 					local m = require("octo.mappings")
+					local reviews = require("octo.reviews")
 					vim.keymap.set("n", "<localleader>c", m.add_comment, { buffer = b, desc = "add comment" })
 					vim.keymap.set("n", "<localleader>r", m.resolve_thread, { buffer = b, desc = "resolve thread" })
 					vim.keymap.set("n", "<localleader>u", m.unresolve_thread, { buffer = b, desc = "unresolve thread" })
+					vim.keymap.set("n", "<localleader>rr", reviews.start_or_resume_review, { buffer = b, desc = "start or resume review" })
 				end,
 			})
 		end,
