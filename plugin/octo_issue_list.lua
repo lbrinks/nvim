@@ -66,12 +66,44 @@ local function render()
 	vim.bo[buf].modifiable = false
 end
 
+-- Custom query that includes assignees (needed for client-side unassigned filtering)
+local issues_with_assignees_query = [[
+query(
+  $owner: String!,
+  $name: String!,
+  $endCursor: String,
+  $filter_by: IssueFilters,
+  $order_by: IssueOrder,
+) {
+  repository(owner: $owner, name: $name) {
+    issues(first: 100, after: $endCursor, filterBy: $filter_by, orderBy: $order_by) {
+      nodes {
+        __typename
+        id
+        number
+        title
+        url
+        repository { nameWithOwner }
+        state
+        stateReason
+        assignees(first: 10) {
+          nodes { login }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+]]
+
 --- Fetch issues from GitHub using octo's gh module.
 local function fetch_issues()
 	local gh = require("octo.gh")
 	local config = require("octo.config")
 	local utils = require("octo.utils")
-	local queries = require("octo.gh.queries")
 
 	local repo = state.repo or utils.get_remote_name()
 	state.repo = repo
@@ -88,13 +120,9 @@ local function fetch_issues()
 	if state.filter_label and state.filter_label ~= "" then
 		filter_by.labels = { state.filter_label }
 	end
-	if state.filter_assignee then
-		if state.filter_assignee == "" then
-			-- GitHub IssueFilters: assignee "*" means assigned, "none" means unassigned
-			filter_by.assignee = "none"
-		else
-			filter_by.assignee = state.filter_assignee
-		end
+	-- Für "unassigned" filtern wir client-seitig (GraphQL unterstützt kein "none")
+	if state.filter_assignee and state.filter_assignee ~= "" then
+		filter_by.assignee = state.filter_assignee
 	end
 
 	-- Show loading state
@@ -105,7 +133,7 @@ local function fetch_issues()
 	end
 
 	gh.api.graphql({
-		query = queries.issues,
+		query = issues_with_assignees_query,
 		F = {
 			owner = owner,
 			name = name,
@@ -127,7 +155,21 @@ local function fetch_issues()
 				end
 				local ok, resp = pcall(utils.aggregate_pages, output, "data.repository.issues.nodes")
 				if ok and resp and resp.data and resp.data.repository then
-					state.issues = resp.data.repository.issues.nodes or {}
+					local issues = resp.data.repository.issues.nodes or {}
+					-- Client-side filter: unassigned
+					if state.filter_assignee == "" then
+						local filtered = {}
+						for _, issue in ipairs(issues) do
+							local has_assignees = issue.assignees
+								and issue.assignees.nodes
+								and #issue.assignees.nodes > 0
+							if not has_assignees then
+								table.insert(filtered, issue)
+							end
+						end
+						issues = filtered
+					end
+					state.issues = issues
 				else
 					state.issues = {}
 				end
@@ -290,9 +332,12 @@ local function setup_keymaps(buf)
 
 	-- Assigned to me
 	vim.keymap.set("n", "m", function()
+		if not vim.g.octo_viewer then
+			vim.g.octo_viewer = require("octo.gh").get_user_name()
+		end
 		state.filter_assignee = vim.g.octo_viewer
 		if not state.filter_assignee then
-			vim.notify("[issue-list] Viewer not loaded yet, try again after running an Octo command", vim.log.levels.WARN)
+			vim.notify("[issue-list] Could not determine GitHub username", vim.log.levels.ERROR)
 			return
 		end
 		fetch_issues()
@@ -304,14 +349,78 @@ local function setup_keymaps(buf)
 		fetch_issues()
 	end, vim.tbl_extend("force", opts, { desc = "Unassigned issues" }))
 
-	-- Filter by assignee (search)
+	-- Filter by assignee (Telescope picker with repo collaborators)
 	vim.keymap.set("n", "a", function()
-		vim.ui.input({ prompt = "Filter by assignee: ", default = state.filter_assignee or "" }, function(assignee)
-			if assignee ~= nil then
-				state.filter_assignee = assignee ~= "" and assignee or nil
-				fetch_issues()
-			end
-		end)
+		local gh = require("octo.gh")
+		local queries = require("octo.gh.queries")
+		local octo_utils = require("octo.utils")
+		local pickers = require("telescope.pickers")
+		local finders = require("telescope.finders")
+		local conf = require("telescope.config").values
+		local actions = require("telescope.actions")
+		local action_state = require("telescope.actions.state")
+
+		local repo = state.repo or octo_utils.get_remote_name()
+		if not repo then
+			vim.notify("[issue-list] Cannot determine repo", vim.log.levels.ERROR)
+			return
+		end
+		local owner, name = octo_utils.split_repo(repo)
+
+		gh.api.graphql({
+			query = queries.assignable_users,
+			F = { owner = owner, name = name },
+			jq = ".data.repository.assignableUsers.nodes",
+			opts = {
+				cb = vim.schedule_wrap(function(output, stderr)
+					if stderr and stderr ~= "" then
+						vim.notify("[issue-list] " .. stderr, vim.log.levels.ERROR)
+						return
+					end
+					if not output or output == "" then
+						vim.notify("[issue-list] No assignable users found", vim.log.levels.WARN)
+						return
+					end
+					local ok, users = pcall(vim.json.decode, output)
+					if not ok or not users then
+						vim.notify("[issue-list] Failed to parse users", vim.log.levels.ERROR)
+						return
+					end
+
+					pickers
+						.new({}, {
+							prompt_title = "Filter by assignee",
+							finder = finders.new_table({
+								results = users,
+								entry_maker = function(user)
+									local display = user.login
+									if user.name and user.name ~= "" then
+										display = display .. " (" .. user.name .. ")"
+									end
+									return {
+										value = user,
+										display = display,
+										ordinal = user.login .. " " .. (user.name or ""),
+									}
+								end,
+							}),
+							sorter = conf.generic_sorter({}),
+							attach_mappings = function(prompt_bufnr)
+								actions.select_default:replace(function()
+									local selection = action_state.get_selected_entry()
+									actions.close(prompt_bufnr)
+									if selection then
+										state.filter_assignee = selection.value.login
+										fetch_issues()
+									end
+								end)
+								return true
+							end,
+						})
+						:find()
+				end),
+			},
+		})
 	end, vim.tbl_extend("force", opts, { desc = "Filter by assignee" }))
 
 	-- Clear assignee filter

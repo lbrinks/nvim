@@ -108,6 +108,12 @@ return {
 				callback = function(ev)
 					local ok, props = pcall(vim.api.nvim_buf_get_var, ev.buf, "octo_diff_props")
 					if not ok or not props then return end
+
+					-- <localleader>S for submit review in diff buffers
+					local b = ev.buf
+					local m = require("octo.mappings")
+					vim.keymap.set("n", "<localleader>S", m.submit_review, { buffer = b, desc = "submit review" })
+
 					if not (props.path and props.path:match("%.md$")) then return end
 					-- defer until after diffthis runs (which resets wrap)
 					vim.schedule(function()
@@ -123,8 +129,6 @@ return {
 							require("render-markdown").buf_enable()
 						end)
 						-- secondary <leader>g* bindings for review diff buffers
-						local b = ev.buf
-						local m = require("octo.mappings")
 						vim.keymap.set("n", "<leader>ge", m.focus_files, { buffer = b, desc = "focus changed files panel" })
 						vim.keymap.set("n", "<leader>gb", m.toggle_files, { buffer = b, desc = "toggle changed files panel" })
 						vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
@@ -311,11 +315,35 @@ return {
 					vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
 					vim.keymap.set("n", "<localleader>j", m.select_next_entry, { buffer = b, desc = "move to next changed file" })
 					vim.keymap.set("n", "<localleader>k", m.select_prev_entry, { buffer = b, desc = "move to prev changed file" })
-					vim.keymap.set("n", "<leader>v", function()
-						m.toggle_viewed()
-						m.select_next_entry()
-					end, { buffer = b, desc = "mark as viewed and move to next file" })
+					vim.keymap.set("n", "<localleader>v", function()
+						local reviews = require("octo.reviews")
+						local layout = reviews.get_current_layout()
+						if not layout or not layout.file_panel:is_open() then return end
+
+						-- Toggle viewed on current file
+						local cur_file = layout.file_panel:get_file_at_cursor()
+						if cur_file then
+							cur_file:toggle_viewed()
+						end
+
+						-- Advance cursor to next file
+						layout.file_panel:highlight_next_file()
+
+						-- Load next file's diff as preview, then return focus to panel
+						local next_file = layout.file_panel:get_file_at_cursor()
+						if next_file then
+							local panel_win = layout.file_panel.winid
+							layout:set_current_file(next_file)
+							if vim.api.nvim_win_is_valid(panel_win) then
+								vim.api.nvim_set_current_win(panel_win)
+							end
+						end
+
+						-- Dot-repeat
+						vim.fn["repeat#set"](vim.api.nvim_replace_termcodes("<localleader>v", true, true, true))
+					end, { buffer = b, desc = "mark viewed, advance & preview next" })
 					vim.keymap.set("n", "<localleader>h", toggle_hide_viewed_files, { buffer = b, desc = "toggle hide viewed files" })
+					vim.keymap.set("n", "<localleader>S", m.submit_review, { buffer = b, desc = "submit review" })
 					vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
 				end,
 			})
@@ -326,11 +354,19 @@ return {
 				callback = function(ev)
 					local b = ev.buf
 					local m = require("octo.mappings")
-					local reviews = require("octo.reviews")
+					local octo_buf = require("octo.utils").get_current_buffer()
+					local kind = octo_buf and octo_buf.kind or nil
+
+					-- Gemeinsam: Kommentar hinzufügen
 					vim.keymap.set("n", "<localleader>c", m.add_comment, { buffer = b, desc = "add comment" })
-					vim.keymap.set("n", "<localleader>r", m.resolve_thread, { buffer = b, desc = "resolve thread" })
-					vim.keymap.set("n", "<localleader>u", m.unresolve_thread, { buffer = b, desc = "unresolve thread" })
-					vim.keymap.set("n", "<localleader>rr", reviews.start_or_resume_review, { buffer = b, desc = "start or resume review" })
+
+					if kind == "reviewthread" then
+						vim.keymap.set("n", "<localleader>r", m.resolve_thread, { buffer = b, desc = "resolve thread" })
+						vim.keymap.set("n", "<localleader>u", m.unresolve_thread, { buffer = b, desc = "unresolve thread" })
+					elseif kind == "pull" then
+						local reviews = require("octo.reviews")
+						vim.keymap.set("n", "<localleader>r", reviews.start_or_resume_review, { buffer = b, desc = "start or resume review" })
+					end
 				end,
 			})
 		end,
