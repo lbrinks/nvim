@@ -272,8 +272,8 @@ return {
 			review_diff = {
 					submit_review = { lhs = "<leader>gvs", desc = "submit review" },
 					discard_review = { lhs = "<leader>gvx", desc = "discard review" },
-					add_review_comment = { lhs = "<localleader>c", desc = "add review comment" },
-					add_review_suggestion = { lhs = "<localleader>s", desc = "add review suggestion" },
+					add_review_comment = { lhs = "<localleader>c", desc = "add review comment", mode = { "n", "x" } },
+					add_review_suggestion = { lhs = "<localleader>s", desc = "add review suggestion", mode = { "n", "x" } },
 					focus_files = { lhs = "<localleader>f", desc = "focus changed files panel" },
 					toggle_files = { lhs = "<localleader>b", desc = "toggle changed files panel" },
 					next_thread = { lhs = "]t", desc = "move to next thread" },
@@ -301,6 +301,19 @@ return {
 					close_review_tab = { lhs = "<localleader>q", desc = "close review tab" },
 					toggle_viewed = { lhs = "<localleader><space>", desc = "toggle file viewed" },
 				},
+				runs = {
+					expand_step = { lhs = "o", desc = "expand workflow step" },
+					next_step = { lhs = "]s", desc = "next workflow step" },
+					prev_step = { lhs = "[s", desc = "previous workflow step" },
+					next_job = { lhs = "]j", desc = "next workflow job" },
+					prev_job = { lhs = "[j", desc = "previous workflow job" },
+					open_in_browser = { lhs = "<C-b>", desc = "open workflow run in browser" },
+					refresh = { lhs = "<C-r>", desc = "refresh workflow" },
+					rerun = { lhs = "<C-o>", desc = "rerun workflow" },
+					rerun_failed = { lhs = "<C-f>", desc = "rerun failed workflow" },
+					cancel = { lhs = "<C-x>", desc = "cancel workflow" },
+					copy_url = { lhs = "<C-y>", desc = "copy url to system clipboard" },
+				},
 			},
 			})
 
@@ -315,6 +328,19 @@ return {
 					vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
 					vim.keymap.set("n", "<localleader>j", m.select_next_entry, { buffer = b, desc = "move to next changed file" })
 					vim.keymap.set("n", "<localleader>k", m.select_prev_entry, { buffer = b, desc = "move to prev changed file" })
+					vim.keymap.set("n", "<Tab>", function()
+						local reviews = require("octo.reviews")
+						local layout = reviews.get_current_layout()
+						if not layout or not layout.file_panel:is_open() then return end
+						local file = layout.file_panel:get_file_at_cursor()
+						if file then
+							local panel_win = layout.file_panel.winid
+							layout:set_current_file(file)
+							if vim.api.nvim_win_is_valid(panel_win) then
+								vim.api.nvim_set_current_win(panel_win)
+							end
+						end
+					end, { buffer = b, desc = "preview file diff" })
 					vim.keymap.set("n", "<localleader>v", function()
 						local reviews = require("octo.reviews")
 						local layout = reviews.get_current_layout()
@@ -345,6 +371,10 @@ return {
 					vim.keymap.set("n", "<localleader>h", toggle_hide_viewed_files, { buffer = b, desc = "toggle hide viewed files" })
 					vim.keymap.set("n", "<localleader>S", m.submit_review, { buffer = b, desc = "submit review" })
 					vim.keymap.set("n", "<C-c>", "<cmd>tabclose<cr>", { buffer = b, desc = "close review tab" })
+					vim.schedule(function()
+						local ok, wk_buf = pcall(require, "which-key.buf")
+						if ok then wk_buf.clear({ buf = b }) end
+					end)
 				end,
 			})
 
@@ -367,6 +397,10 @@ return {
 						local reviews = require("octo.reviews")
 						vim.keymap.set("n", "<localleader>r", reviews.start_or_resume_review, { buffer = b, desc = "start or resume review" })
 					end
+					vim.schedule(function()
+						local ok, wk_buf = pcall(require, "which-key.buf")
+						if ok then wk_buf.clear({ buf = b }) end
+					end)
 				end,
 			})
 		end,
