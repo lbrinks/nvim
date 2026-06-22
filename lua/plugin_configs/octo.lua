@@ -24,6 +24,116 @@ local function resolve_gh_bin()
 	return "/usr/bin/gh"
 end
 
+-- Lazily resolved GitHub username for "assign to me"
+local _gh_username = nil
+local function gh_username()
+	if not _gh_username then
+		local bin = resolve_gh_bin()
+		local env = resolve_gh_env()
+		local prefix = env.GITHUB_TOKEN and ("GITHUB_TOKEN=" .. env.GITHUB_TOKEN .. " ") or ""
+		local out = vim.fn.system(prefix .. bin .. " api user -q .login"):gsub("%s+$", "")
+		if vim.v.shell_error == 0 and out ~= "" then
+			_gh_username = out
+		end
+	end
+	return _gh_username
+end
+
+-- Parse org from remote URL (https://github.com/<org>/<repo> or git@github.com:<org>/<repo>)
+local function parse_org_from_remote()
+	local remote = vim.fn.system("git remote get-url origin 2>/dev/null"):gsub("%s+$", "")
+	return remote:match("github%.com[:/]([^/]+)/")
+end
+
+-- Returns the .git directory for the current repo
+local function git_dir()
+	local dir = vim.fn.system("git rev-parse --git-dir 2>/dev/null"):gsub("%s+$", "")
+	if vim.v.shell_error ~= 0 or dir == "" then return nil end
+	return dir
+end
+
+-- Fetch team members from GitHub and write to .git/octo-assignees.json
+-- cb(members) where members = [{login, id}, ...]
+local function fetch_and_cache_team(cb)
+	local team = vim.env.GITHUB_TEAM
+	if not team or team == "" then
+		vim.notify("[octo] GITHUB_TEAM env var not set", vim.log.levels.WARN)
+		return
+	end
+	local org = parse_org_from_remote()
+	if not org then
+		vim.notify("[octo] Could not parse org from git remote", vim.log.levels.WARN)
+		return
+	end
+	local bin = resolve_gh_bin()
+	local env = resolve_gh_env()
+	local prefix = env.GITHUB_TOKEN and ("GITHUB_TOKEN=" .. env.GITHUB_TOKEN .. " ") or ""
+	local query = string.format(
+		'query { organization(login: "%s") { team(slug: "%s") { members(first: 100) { nodes { id login } } } } }',
+		org, team
+	)
+	local out = vim.fn.system(
+		prefix .. bin .. " api graphql -f query=" .. vim.fn.shellescape(query)
+			.. " --jq '.data.organization.team.members.nodes'"
+	):gsub("%s+$", "")
+	if vim.v.shell_error ~= 0 or out == "" or out == "null" then
+		vim.notify("[octo] Failed to fetch team members: " .. out, vim.log.levels.WARN)
+		return
+	end
+	local ok, members = pcall(vim.json.decode, out)
+	if not ok or type(members) ~= "table" then
+		vim.notify("[octo] Failed to parse team members response", vim.log.levels.WARN)
+		return
+	end
+	local gdir = git_dir()
+	if gdir then
+		local f = io.open(gdir .. "/octo-assignees.json", "w")
+		if f then
+			f:write(vim.json.encode(members))
+			f:close()
+		end
+	end
+	cb(members)
+end
+
+-- Load team members from cache or fetch from API, then call cb(members)
+local function load_team_members(cb)
+	local gdir = git_dir()
+	if gdir then
+		local f = io.open(gdir .. "/octo-assignees.json", "r")
+		if f then
+			local raw = f:read("*a")
+			f:close()
+			local ok, members = pcall(vim.json.decode, raw)
+			if ok and type(members) == "table" and #members > 0 then
+				cb(members)
+				return
+			end
+		end
+	end
+	fetch_and_cache_team(cb)
+end
+
+-- Invalidate cache and re-fetch
+local function refresh_team_members(cb)
+	local gdir = git_dir()
+	if gdir then
+		os.remove(gdir .. "/octo-assignees.json")
+	end
+	fetch_and_cache_team(cb)
+end
+
+-- Pick a team member and assign them
+local function pick_and_assign()
+	load_team_members(function(members)
+		local logins = vim.tbl_map(function(m) return m.login end, members)
+		vim.ui.select(logins, { prompt = "Assign to:" }, function(choice)
+			if not choice then return end
+			require("octo.commands").add_user("assignee", { choice })
+		end)
+	end)
+end
+
 --- Toggle visibility of viewed files in the file panel.
 --- Stores the original files list to allow restore.
 local file_panel_viewed_state = {}
@@ -102,33 +212,65 @@ return {
 			{ "<leader>gB", "<cmd>Octo pr browser<cr>", desc = "[G]H PR [B]rowser" },
 		},
 		config = function()
-			-- Apply wrap, linebreak, and render-markdown to Octo diff buffers for markdown files.
+			-- Helper: apply wrap/linebreak on a window if it shows an Octo diff buffer.
+			local function octo_diff_apply_wrap(win)
+				local buf = vim.api.nvim_win_get_buf(win)
+				local ok, props = pcall(vim.api.nvim_buf_get_var, buf, "octo_diff_props")
+				if not ok or not props then return end
+				vim.wo[win].wrap = true
+				vim.wo[win].linebreak = true
+			end
+
+			-- Whenever diffthis enables diff mode on a window, restore wrap/linebreak if the
+			-- buffer is an Octo diff buffer. Fires reliably even after comment threads are
+			-- dismissed and show_diff() re-runs diffthis.
+			vim.api.nvim_create_autocmd("OptionSet", {
+				pattern = "diff",
+				callback = function()
+					if not vim.v.option_new then return end
+					octo_diff_apply_wrap(vim.api.nvim_get_current_win())
+				end,
+			})
+
+			-- Re-apply wrap when returning to an Octo diff window (e.g. after switching tabs).
+			-- Neovim resets wrap=false when entering a diff-mode window; this counters that.
+			vim.api.nvim_create_autocmd("WinEnter", {
+				callback = function()
+					local win = vim.api.nvim_get_current_win()
+					if not vim.wo[win].diff then return end
+					octo_diff_apply_wrap(win)
+				end,
+			})
+
+			-- Suppress the "No matching autocommands: BufRead" noise that appears when
+			-- entering Octo's acwrite buffers (issues, PRs, review threads).
+			vim.api.nvim_create_autocmd("BufEnter", {
+				callback = function(ev)
+					if vim.bo[ev.buf].buftype == "acwrite" and vim.bo[ev.buf].filetype == "octo" then
+						vim.cmd("silent! doautocmd BufRead")
+					end
+				end,
+			})
+
+			-- One-time setup per diff buffer: keymaps and markdown extras.
 			-- Octo skips ftplugin triggering for these buffers, so we handle it manually.
 			vim.api.nvim_create_autocmd("BufWinEnter", {
 				callback = function(ev)
 					local ok, props = pcall(vim.api.nvim_buf_get_var, ev.buf, "octo_diff_props")
 					if not ok or not props then return end
 
-					-- <localleader>S for submit review in diff buffers
 					local b = ev.buf
 					local m = require("octo.mappings")
 					vim.keymap.set("n", "<localleader>S", m.submit_review, { buffer = b, desc = "submit review" })
 
 					if not (props.path and props.path:match("%.md$")) then return end
-					-- defer until after diffthis runs (which resets wrap)
 					vim.schedule(function()
-						local win = vim.fn.bufwinid(ev.buf)
-						if win ~= -1 then
-							vim.wo[win].wrap = true
-							vim.wo[win].linebreak = true
-						end
 						if vim.bo[ev.buf].filetype == "" then
 							vim.bo[ev.buf].filetype = "markdown"
 						end
 						pcall(function()
 							require("render-markdown").buf_enable()
 						end)
-						-- secondary <leader>g* bindings for review diff buffers
 						vim.keymap.set("n", "<leader>ge", m.focus_files, { buffer = b, desc = "focus changed files panel" })
 						vim.keymap.set("n", "<leader>gb", m.toggle_files, { buffer = b, desc = "toggle changed files panel" })
 						vim.keymap.set("n", "<leader>g<space>", m.toggle_viewed, { buffer = b, desc = "toggle file viewed" })
@@ -317,6 +459,18 @@ return {
 			},
 			})
 
+			-- Patch upstream nil crash: state_hl_map lookup returns nil for unknown states
+			-- (e.g. after closing an issue the re-render may pass a state not in the map)
+			local tcb = require("octo.ui.text-chunk-builder")
+			local _orig_state_with_icon = tcb.state_with_icon
+			tcb.state_with_icon = function(self, state, ...)
+				local utils = require("octo.utils")
+				if state and not utils.state_hl_map[state] then
+					utils.state_hl_map[state] = "OctoStateClosed"
+				end
+				return _orig_state_with_icon(self, state, ...)
+			end
+
 			-- Secondary <leader>g* bindings for review_diff and file_panel (in addition to localleader ones)
 			vim.api.nvim_create_autocmd("FileType", {
 				pattern = { "octo_panel" },
@@ -390,7 +544,30 @@ return {
 					-- Gemeinsam: Kommentar hinzufügen
 					vim.keymap.set("n", "<localleader>c", m.add_comment, { buffer = b, desc = "add comment" })
 
-					if kind == "reviewthread" then
+					if kind == "issue" then
+						vim.keymap.set("n", "<localleader>a", pick_and_assign, { buffer = b, desc = "add assignee" })
+						vim.keymap.set("n", "<localleader>ar", function()
+							refresh_team_members(function(members)
+								local logins = vim.tbl_map(function(m) return m.login end, members)
+								vim.ui.select(logins, { prompt = "Assign to:" }, function(choice)
+									if not choice then return end
+									require("octo.commands").add_user("assignee", { choice })
+								end)
+							end)
+						end, { buffer = b, desc = "add assignee (refresh cache)" })
+						vim.keymap.set("n", "<localleader>A", function()
+							local user = gh_username()
+							if user then
+								require("octo.commands").add_user("assignee", { user })
+							else
+								vim.notify("[octo] Could not resolve GitHub username", vim.log.levels.WARN)
+							end
+						end, { buffer = b, desc = "assign to me" })
+						vim.keymap.set("n", "<localleader>l", m.add_label, { buffer = b, desc = "add label" })
+						vim.keymap.set("n", "<localleader>rl", m.remove_label, { buffer = b, desc = "remove label" })
+						vim.keymap.set("n", "<localleader>ra", m.remove_assignee, { buffer = b, desc = "remove assignee" })
+						vim.keymap.set("n", "<localleader>rc", m.close_issue, { buffer = b, desc = "close issue" })
+					elseif kind == "reviewthread" then
 						vim.keymap.set("n", "<localleader>r", m.resolve_thread, { buffer = b, desc = "resolve thread" })
 						vim.keymap.set("n", "<localleader>u", m.unresolve_thread, { buffer = b, desc = "unresolve thread" })
 					elseif kind == "pull" then
