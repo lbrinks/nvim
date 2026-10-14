@@ -8,7 +8,15 @@ Plugins for viewing git changes, resolving merge conflicts, and navigating diffs
 
 **What:** Shows git status signs in the gutter (`+` added, `~` changed, `_` deleted). Also provides commands for hunk staging, resetting, and previewing.
 
-**This config:** Only sets gutter signs. No keybindings configured for interactive hunk operations. Access via `:Gitsigns` commands if needed.
+**This config:** Gutter signs plus inline current-line blame, enabled on startup (`current_line_blame = true`).
+
+### Keybindings (Buffer-local)
+
+| Key | Action |
+|-----|--------|
+| `<leader>gb` | Toggle inline current-line blame |
+
+No keybindings are configured for interactive hunk operations — use `:Gitsigns` commands if needed.
 
 ---
 

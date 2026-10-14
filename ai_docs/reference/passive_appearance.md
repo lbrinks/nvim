@@ -46,7 +46,7 @@ Plugins that apply automatically (colorscheme, statusline, visual helpers) or re
 
 **What:** Shows `+`, `~`, `_` signs in the sign column for lines added, changed, or deleted relative to the git index/HEAD. Also shows hunk status on the far-left sign column.
 
-**Interaction:** Purely visual in this config. The gutter signs appear automatically. The plugin also provides commands (e.g., `:Gitsigns next_hunk`, `:Gitsigns stage_hunk`) accessible via `:` command line, but no keybindings are configured for them.
+**Interaction:** Gutter signs appear automatically. Inline current-line blame is enabled on startup and can be toggled with `<leader>gb`. The plugin also provides commands (e.g., `:Gitsigns next_hunk`, `:Gitsigns stage_hunk`) accessible via `:` command line, but no keybindings are configured for them.
 
 ---
 
