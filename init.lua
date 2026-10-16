@@ -16,21 +16,21 @@ set.number = true -- Line numbers
 set.relativenumber = true -- Relative Line numbers
 
 -- Custom statuscolumn with right-side padding
-vim.o.statuscolumn = [[%!v:lua.StatusColumn()]]
-function _G.StatusColumn()
-  local lnum = vim.v.lnum
-  local relnum = vim.v.relnum
-  local is_curr = relnum == 0
-  
-  -- Get line number text
-  local num_str = is_curr and tostring(lnum) or tostring(relnum)
-  
-  -- Right-align in 4 chars, then add 2 spaces padding
-  local width = 4
-  local padded = string.rep(" ", width - #num_str) .. num_str .. "  "
-  
-  return padded
-end
+-- vim.o.statuscolumn = [[%!v:lua.StatusColumn()]]
+-- function _G.StatusColumn()
+--   local lnum = vim.v.lnum
+--   local relnum = vim.v.relnum
+--   local is_curr = relnum == 0
+--
+--   -- Get line number text
+--   local num_str = is_curr and tostring(lnum) or tostring(relnum)
+--
+--   -- Right-align in 4 chars, then add 2 spaces padding
+--   local width = 4
+--   local padded = string.rep(" ", width - #num_str) .. num_str .. "  "
+--
+--   return padded
+-- end
 set.hidden = true -- Required to keep multiple buffers open multiple buffers
 set.hlsearch = false -- Set highlight on search
 vim.o.mouse = "a" -- Enable mouse mode
